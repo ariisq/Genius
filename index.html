@@ -89,7 +89,7 @@ dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);co
 dialog::backdrop{background:rgba(10,16,24,.55)}
 dialog h3{margin:0 0 14px;font-size:1.2rem}
 label{display:block;font-weight:600;font-size:.92rem;margin:12px 0 4px}
-input[type=text],textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:var(--paper)}
+input[type=text],input[type=password],textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:var(--paper)}
 textarea{resize:vertical;line-height:1.5}
 .cprev{width:120px;aspect-ratio:1;border:1px dashed var(--line);border-radius:8px;display:grid;place-items:center;font-size:.8rem;color:var(--muted);overflow:hidden;margin-bottom:8px;text-align:center}
 .cprev img{width:100%;height:100%;object-fit:cover}
@@ -97,6 +97,7 @@ textarea{resize:vertical;line-height:1.5}
 footer{border-top:1px solid var(--line);padding:18px 0 40px;color:var(--muted);font-size:.9rem}
 #toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;z-index:100;max-width:calc(100vw - 24px)}
 #toast[hidden]{display:none}
+#kq{margin-top:10px}#kq input{max-width:260px}#kq[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -108,7 +109,9 @@ footer{border-top:1px solid var(--line);padding:18px 0 40px;color:var(--muted);f
     <button class="btn ghost" id="imp" type="button">Pulihkan cadangan</button>
     <input type="file" id="impfile" accept="application/json,.json" hidden>
   </div>
-  <p>Data tersimpan di browser ini. Pakai cadangan untuk memindahkan data ke perangkat lain.</p>
+  <p id="sy">Menghubungkan…</p>
+  <div class="row" id="kq" hidden><input type="password" id="kk" placeholder="Kata sandi sinkron" autocomplete="off"><button class="btn primary" id="ks" type="button">Simpan</button></div>
+  <p>Data disimpan di browser ini dan disinkronkan lewat server. File cadangan (.json) tetap berguna sebagai arsip.</p>
 </div></footer>
 
 <div id="selbar" hidden><span id="selprev"></span><button type="button" id="selbtn">Beri catatan</button></div>
@@ -162,8 +165,9 @@ function load(){
 }
 var db=load();
 function save(){
-  try{localStorage.setItem(KEY,JSON.stringify(db))}
-  catch(e){toast('Penyimpanan penuh atau diblokir. Simpan cadangan (.json) dulu.')}
+  stamp();
+  if(!persist())toast('Penyimpanan penuh atau diblokir. Simpan cadangan (.json) dulu.');
+  queue();
 }
 var albumById=function(id){return db.albums.filter(function(a){return a.id===id})[0]};
 var songById=function(id){return db.songs.filter(function(s){return s.id===id})[0]};
@@ -444,6 +448,83 @@ $('#impfile').addEventListener('change',function(e){
   r.readAsText(f);e.target.value='';
 });
 
+/* ---------- sinkron antar perangkat ---------- */
+var KY='',snap={},busy=0,again=0,later=0,tq=0,lastV=null,warned=0;
+try{KY=localStorage.getItem(KEY+'-k')||''}catch(e){}
+function sig(o){return JSON.stringify(o,function(k,v){return k==='u'?undefined:v})}
+function ents(){var m={};db.albums.forEach(function(a){m['a:'+a.id]=a});db.songs.forEach(function(s){m['s:'+s.id]=s});return m}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch(e){return false}}
+function stamp(){
+  var now=Date.now(),c=ents(),k;db.del=db.del||{};
+  for(k in c){if(snap[k]!==sig(c[k])||db.del[k]){c[k].u=now;delete db.del[k];snap[k]=sig(c[k])}}
+  for(k in snap){if(!c[k]){db.del[k]=now;delete snap[k]}}
+}
+(function(){
+  var legacy=false,c,k,now=Date.now();
+  try{legacy=!!localStorage.getItem(KEY)}catch(e){}
+  db.del=db.del||{};c=ents();
+  for(k in c){snap[k]=sig(c[k]);if(legacy&&c[k].u===undefined)c[k].u=now}
+  if(legacy)persist();
+})();
+function st(t){$('#sy').textContent=t}
+function askKey(){
+  $('#kq').hidden=false;st('Masukkan kata sandi sinkron untuk menyambungkan perangkat ini.');
+  if(!warned){warned=1;toast('Kata sandi sinkron dimasukkan di bagian bawah halaman.')}
+}
+$('#ks').addEventListener('click',function(){
+  KY=$('#kk').value.trim();if(!KY)return;
+  try{localStorage.setItem(KEY+'-k',KY)}catch(e){}
+  $('#kq').hidden=true;sync();
+});
+async function api(m,qs,body){
+  var r=await fetch('/api/sync'+(qs||''),{method:m,headers:{'x-key':KY,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+  if(r.status===401){KY='';try{localStorage.removeItem(KEY+'-k')}catch(e){}askKey();throw 0}
+  if(!r.ok)throw 1;
+  return r.json();
+}
+function put(k,o){
+  var arr=k.charAt(0)==='a'?db.albums:db.songs,id=k.slice(2),i=-1,old;
+  arr.forEach(function(x,n){if(x.id===id)i=n});
+  if(o.del){if(i>=0)arr.splice(i,1);db.del[k]=o.u;delete snap[k];return}
+  delete db.del[k];
+  if(i>=0){old=arr[i];Object.keys(old).forEach(function(p){delete old[p]});Object.assign(old,o)}else arr.push(o);
+  snap[k]=sig(o);
+}
+function refresh(){
+  if(!$('#sheet').hidden||!$('#selbar').hidden||document.querySelector('dialog')){later=1;return}
+  later=0;var y=window.scrollY;go();window.scrollTo(0,y);
+}
+async function sync(){
+  if(!KY)return askKey();
+  if(busy){again=1;return}
+  busy=1;
+  try{
+    var v=(await api('GET','?v=1')).v;
+    var rem=(await api('GET')).idx||{},c=ents(),k,i,lu,pull=[],push={},changed=0;
+    for(k in rem){lu=c[k]?(c[k].u||0):(db.del[k]||0);if(rem[k]>lu)pull.push(k)}
+    for(k in c){if(c[k].u&&c[k].u>(rem[k]||0))push[k]=c[k]}
+    for(k in db.del){if(!c[k]&&db.del[k]>(rem[k]||0))push[k]={id:k.slice(2),del:1,u:db.del[k]}}
+    for(i=0;i<pull.length;i+=6){
+      var it=(await api('GET','?k='+encodeURIComponent(pull.slice(i,i+6).join(',')))).items||{};
+      for(k in it){put(k,it[k]);changed=1}
+    }
+    var batch={},size=0,n=0,len;
+    var send=async function(){if(n){await api('PUT','',{items:batch});batch={};size=0;n=0}};
+    for(k in push){len=JSON.stringify(push[k]).length;if(n&&size+len>3e6)await send();batch[k]=push[k];size+=len;n++}
+    await send();
+    if(changed){persist();refresh()}
+    lastV=v;
+    var d=new Date();st('Tersinkron pukul '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2));
+  }catch(e){if(e!==0)st('Belum tersinkron. Data tetap aman di perangkat ini.')}
+  busy=0;
+  if(again){again=0;queue()}
+}
+async function poll(){
+  if(!KY||document.hidden||busy)return;
+  try{var v=(await api('GET','?v=1')).v;if(v!==lastV)sync();else if(later)refresh()}catch(e){}
+}
+function queue(){clearTimeout(tq);tq=setTimeout(sync,1200)}
+
 /* ---------- router ---------- */
 function go(){
   closeSheet();current=null;pending=null;held=null;$('#selbar').hidden=true;
@@ -455,6 +536,10 @@ function go(){
 }
 window.addEventListener('hashchange',go);
 go();
+if(KY)sync();else askKey();
+setInterval(poll,60000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)poll()});
+window.addEventListener('online',function(){sync()});
 })();
 </script>
 </body>
