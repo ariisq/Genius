@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catatan Lirik</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF2F5; --card:#FFFFFF; --ink:#16202E; --muted:#586577; --line:#CBD5DE;
+  --mark:#FFE14D; --mark-on:#FFC400; --accent:#0F4C5C; --accent-ink:#FFFFFF; --danger:#B3261E;
+  --sans:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--paper:#10161E;--card:#18212C;--ink:#E7ECF1;--muted:#97A4B4;--line:#2B3846;
+    --mark:#6B5C00;--mark-on:#9A8300;--accent:#6CC4D6;--accent-ink:#0B1218;--danger:#FF8A80}
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5}
+a{color:inherit}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:980px;margin:0 auto;padding:0 18px}
+header.top{border-bottom:1px solid var(--line);background:var(--paper)}
+header.top .wrap{display:flex;align-items:center;justify-content:space-between;height:58px}
+.brand{font-weight:700;font-size:1.15rem;text-decoration:none;letter-spacing:-.01em}
+main{padding:28px 0 140px;min-height:70vh}
+h1{font-size:clamp(1.7rem,4vw,2.5rem);line-height:1.1;margin:0 0 6px;letter-spacing:-.02em}
+h2{font-size:1.1rem;margin:36px 0 12px}
+.muted{color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line);background:var(--card);padding:8px 14px;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--danger)}
+.back{display:inline-block;margin-bottom:18px;color:var(--muted);text-decoration:none}
+.back:hover{color:var(--ink)}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+
+/* album grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:22px 18px}
+.album{text-decoration:none;display:block}
+.album .cv{aspect-ratio:1;width:100%;border-radius:6px;overflow:hidden;box-shadow:0 1px 0 var(--line)}
+.album:hover .cv{outline:2px solid var(--ink);outline-offset:2px}
+.album b{display:block;margin-top:8px;line-height:1.25}
+.cv img{width:100%;height:100%;object-fit:cover;display:block}
+.cv.ph{display:grid;place-items:center;font-weight:700;font-size:3rem;color:#fff}
+.empty{border:1.5px dashed var(--line);border-radius:10px;padding:34px 20px;text-align:center;color:var(--muted)}
+
+/* album page */
+.ahead{display:flex;gap:22px;align-items:flex-end;flex-wrap:wrap;margin-bottom:26px}
+.ahead .cv{width:min(220px,100%);aspect-ratio:1;border-radius:8px;overflow:hidden;flex:none}
+.songs{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.songs li a{display:flex;justify-content:space-between;gap:12px;padding:14px 4px;border-bottom:1px solid var(--line);text-decoration:none}
+.songs li a:hover{background:var(--card)}
+.songs .n{font-size:.9rem}
+
+/* song page */
+.lyrics{font-family:var(--serif);font-size:1.3rem;line-height:1.95;white-space:pre-wrap;max-width:36rem;margin:26px 0 0;overflow-wrap:anywhere}
+mark.note{background:var(--mark);color:inherit;padding:.04em .08em;border-radius:.18em;cursor:pointer;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+mark.note:hover,mark.note.on{background:var(--mark-on)}
+.hint{max-width:36rem;font-size:.95rem;color:var(--muted);margin:10px 0 0}
+.nlist{list-style:none;margin:0;padding:0;max-width:36rem}
+.nlist li{border-top:1px solid var(--line)}
+.nlist button{display:block;width:100%;text-align:left;background:none;border:0;padding:12px 2px;cursor:pointer}
+.nlist button:hover{background:var(--card)}
+.nlist .q{font-family:var(--serif);font-style:italic}
+.nlist .t{color:var(--muted);font-size:.95rem;display:block;margin-top:2px;white-space:pre-wrap}
+
+/* floating bars */
+#selbar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:30;display:flex;gap:12px;align-items:center;
+  background:var(--ink);color:var(--paper);padding:8px 8px 8px 16px;border-radius:999px;max-width:calc(100vw - 24px);box-shadow:0 6px 24px rgba(0,0,0,.25)}
+#selbar[hidden]{display:none}
+#selbar span{font-family:var(--serif);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46vw}
+#selbar button{border:0;border-radius:999px;background:var(--mark);color:#16202E;font-weight:700;padding:8px 16px;cursor:pointer;white-space:nowrap}
+#sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(620px,100vw);z-index:40;background:var(--card);
+  border:1px solid var(--line);border-bottom:0;border-radius:14px 14px 0 0;padding:18px 20px 20px;box-shadow:0 -8px 30px rgba(0,0,0,.18);max-height:60vh;overflow:auto}
+#sheet[hidden]{display:none}
+#sheet .q{font-family:var(--serif);font-style:italic;font-size:1.1rem;margin:0 0 10px;padding-left:12px;border-left:4px solid var(--mark-on)}
+#sheet .t{white-space:pre-wrap;margin:0 0 14px}
+
+/* dialog */
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(540px,calc(100vw - 24px));padding:22px}
+dialog::backdrop{background:rgba(10,16,24,.55)}
+dialog h3{margin:0 0 14px;font-size:1.2rem}
+label{display:block;font-weight:600;font-size:.92rem;margin:12px 0 4px}
+input[type=text],textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:var(--paper)}
+textarea{resize:vertical;line-height:1.5}
+.cprev{width:120px;aspect-ratio:1;border:1px dashed var(--line);border-radius:8px;display:grid;place-items:center;font-size:.8rem;color:var(--muted);overflow:hidden;margin-bottom:8px;text-align:center}
+.cprev img{width:100%;height:100%;object-fit:cover}
+.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+footer{border-top:1px solid var(--line);padding:18px 0 40px;color:var(--muted);font-size:.9rem}
+#toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;z-index:100;max-width:calc(100vw - 24px)}
+#toast[hidden]{display:none}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="#/">Catatan Lirik</a></div></header>
+<main><div class="wrap" id="app"></div></main>
+<footer><div class="wrap">
+  <div class="row">
+    <button class="btn ghost" id="exp" type="button">Simpan cadangan (.json)</button>
+    <button class="btn ghost" id="imp" type="button">Pulihkan cadangan</button>
+    <input type="file" id="impfile" accept="application/json,.json" hidden>
+  </div>
+  <p>Data tersimpan di browser ini. Pakai cadangan untuk memindahkan data ke perangkat lain.</p>
+</div></footer>
+
+<div id="selbar" hidden><span id="selprev"></span><button type="button" id="selbtn">Beri catatan</button></div>
+<div id="sheet" hidden></div>
+<div id="toast" hidden></div>
+
+<script>
+(function(){
+'use strict';
+var KEY='catatan-lirik-v1';
+var $=function(s){return document.querySelector(s)};
+var app=$('#app');
+
+/* ---------- helpers ---------- */
+function h(tag,attrs){
+  var e=document.createElement(tag);
+  attrs=attrs||{};
+  Object.keys(attrs).forEach(function(k){
+    var v=attrs[k];
+    if(k==='class')e.className=v;
+    else if(k.indexOf('on')===0)e.addEventListener(k.slice(2),v);
+    else if(v!==false&&v!=null)e.setAttribute(k,v===true?'':v);
+  });
+  Array.prototype.slice.call(arguments,2).forEach(function add(c){
+    if(c==null||c===false)return;
+    if(Array.isArray(c))return c.forEach(add);
+    e.append(c.nodeType?c:document.createTextNode(String(c)));
+  });
+  return e;
+}
+function uid(){return Math.random().toString(36).slice(2,8)+Date.now().toString(36)}
+var toastTimer;
+function toast(msg){var t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.hidden=true},3500)}
+
+/* ---------- data ---------- */
+function sample(){
+  var lyr="I walk alone when the city sleeps\nThe streetlights count my steps\nI don't know where I'm going\nBut I'm not afraid anymore";
+  var q="I'm not afraid anymore", s=lyr.indexOf(q);
+  var q2="count my steps", s2=lyr.indexOf(q2);
+  return {
+    albums:[{id:'a1',title:'Contoh Album',artist:'Nama Artis',cover:null}],
+    songs:[{id:'s1',albumId:'a1',title:'Contoh Lagu (tulisan sendiri)',lyrics:lyr,notes:[
+      {id:'n1',start:s2,end:s2+q2.length,quote:q2,text:'"menghitung langkahku". Lampu jalan seolah-olah ikut menghitung langkah. Ini gaya bahasa personifikasi.'},
+      {id:'n2',start:s,end:s+q.length,quote:q,text:'"Aku sudah tidak takut lagi."\nanymore = lagi (dipakai di kalimat negatif, artinya "tidak ... lagi").'}
+    ]}]
+  };
+}
+function load(){
+  try{var r=localStorage.getItem(KEY);if(r){var d=JSON.parse(r);if(d&&Array.isArray(d.albums)&&Array.isArray(d.songs))return d}}catch(e){}
+  return sample();
+}
+var db=load();
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(db))}
+  catch(e){toast('Penyimpanan penuh atau diblokir. Simpan cadangan (.json) dulu.')}
+}
+var albumById=function(id){return db.albums.filter(function(a){return a.id===id})[0]};
+var songById=function(id){return db.songs.filter(function(s){return s.id===id})[0]};
+
+/* ---------- cover ---------- */
+function toCover(file){
+  return new Promise(function(res,rej){
+    var img=new Image(),url=URL.createObjectURL(file);
+    img.onload=function(){
+      var S=480,c=document.createElement('canvas'),side=Math.min(img.width,img.height);
+      c.width=c.height=S;
+      c.getContext('2d').drawImage(img,(img.width-side)/2,(img.height-side)/2,side,side,0,0,S,S);
+      URL.revokeObjectURL(url);res(c.toDataURL('image/jpeg',0.82));
+    };
+    img.onerror=function(){rej(new Error('bad image'))};
+    img.src=url;
+  });
+}
+function coverEl(a){
+  if(a.cover)return h('div',{class:'cv'},h('img',{src:a.cover,alt:'Cover '+a.title}));
+  var hue=0;for(var i=0;i<a.title.length;i++)hue=(hue*31+a.title.charCodeAt(i))%360;
+  return h('div',{class:'cv ph',style:'background:hsl('+hue+',38%,34%)','aria-hidden':'true'},(a.title[0]||'?').toUpperCase());
+}
+
+/* ---------- form dialog ---------- */
+function openForm(o){
+  var dlg=h('dialog'),vals={},inputs={};
+  var form=h('form',{onsubmit:function(e){
+    e.preventDefault();
+    var out={};
+    for(var i=0;i<o.fields.length;i++){
+      var f=o.fields[i];
+      out[f.name]=f.type==='cover'?vals[f.name]:inputs[f.name].value;
+      if(f.required&&!String(out[f.name]).trim()){inputs[f.name].focus();toast(f.label+' wajib diisi');return}
+    }
+    dlg.close();o.onSave(out);
+  }},h('h3',{},o.title));
+  o.fields.forEach(function(f){
+    var id='f_'+f.name;
+    form.append(h('label',{for:id},f.label));
+    if(f.type==='cover'){
+      vals[f.name]=f.value||null;
+      var prev=h('div',{class:'cprev',id:id});
+      var draw=function(){prev.textContent='';if(vals[f.name])prev.append(h('img',{src:vals[f.name],alt:''}));else prev.append('Belum ada cover')};
+      draw();
+      var file=h('input',{type:'file',accept:'image/*',onchange:function(e){
+        var fl=e.target.files[0];if(!fl)return;
+        toCover(fl).then(function(d){vals[f.name]=d;draw()}).catch(function(){toast('Gambar tidak bisa dibaca')});
+      }});
+      var rm=h('button',{type:'button',class:'btn ghost',onclick:function(){vals[f.name]=null;draw()}},'Hapus cover');
+      form.append(prev,h('div',{class:'row'},file,rm));
+    }else{
+      var el=f.type==='textarea'
+        ?h('textarea',{id:id,rows:f.rows||5,placeholder:f.placeholder||''})
+        :h('input',{type:'text',id:id,placeholder:f.placeholder||'',autocomplete:'off'});
+      el.value=f.value||'';inputs[f.name]=el;form.append(el);
+    }
+  });
+  form.append(h('div',{class:'actions'},
+    h('button',{type:'button',class:'btn',onclick:function(){dlg.close()}},'Batal'),
+    h('button',{type:'submit',class:'btn primary'},o.submit||'Simpan')));
+  dlg.append(form);
+  dlg.addEventListener('close',function(){dlg.remove()});
+  document.body.append(dlg);dlg.showModal();
+  var first=form.querySelector('input[type=text],textarea');if(first)first.focus();
+}
+
+/* ---------- views ---------- */
+var current=null,pending=null,held=null;
+
+function viewHome(){
+  app.textContent='';
+  app.append(h('div',{class:'head'},
+    h('div',{},h('h1',{},'Album'),h('div',{class:'muted'},db.albums.length+' album, '+db.songs.length+' lagu')),
+    h('button',{class:'btn primary',type:'button',onclick:addAlbum},'Tambah album')));
+  if(!db.albums.length){
+    app.append(h('div',{class:'empty'},'Belum ada album. Tekan "Tambah album" untuk mulai.'));return;
+  }
+  app.append(h('div',{class:'grid'},db.albums.map(function(a){
+    var n=db.songs.filter(function(s){return s.albumId===a.id}).length;
+    return h('a',{class:'album',href:'#/album/'+a.id},coverEl(a),h('b',{},a.title),h('span',{class:'muted'},(a.artist||'Tanpa artis')+' · '+n+' lagu'));
+  })));
+}
+
+function viewAlbum(a){
+  app.textContent='';
+  var songs=db.songs.filter(function(s){return s.albumId===a.id});
+  app.append(h('a',{class:'back',href:'#/'},'← Semua album'));
+  app.append(h('div',{class:'ahead'},coverEl(a),h('div',{},
+    h('h1',{},a.title),h('div',{class:'muted'},a.artist||'Tanpa artis'),
+    h('div',{class:'row',style:'margin-top:14px'},
+      h('button',{class:'btn primary',type:'button',onclick:function(){addSong(a)}},'Tambah lagu'),
+      h('button',{class:'btn',type:'button',onclick:function(){editAlbum(a)}},'Ubah album'),
+      h('button',{class:'btn danger',type:'button',onclick:function(){delAlbum(a)}},'Hapus')))));
+  if(!songs.length){app.append(h('div',{class:'empty'},'Album ini belum punya lagu.'));return}
+  app.append(h('ul',{class:'songs'},songs.map(function(s){
+    return h('li',{},h('a',{href:'#/lagu/'+s.id},h('span',{},s.title),h('span',{class:'muted n'},s.notes.length+' catatan')));
+  })));
+}
+
+function renderLyrics(song,el){
+  el.textContent='';
+  var notes=song.notes.slice().sort(function(a,b){return a.start-b.start}),pos=0;
+  notes.forEach(function(n){
+    if(n.start>pos)el.append(song.lyrics.slice(pos,n.start));
+    el.append(h('mark',{class:'note','data-id':n.id,tabindex:'0',role:'button'},song.lyrics.slice(n.start,n.end)));
+    pos=n.end;
+  });
+  el.append(song.lyrics.slice(pos));
+}
+
+function viewSong(s){
+  current=s;
+  var a=albumById(s.albumId);
+  app.textContent='';
+  app.append(h('a',{class:'back',href:a?'#/album/'+a.id:'#/'},'← '+(a?a.title:'Semua album')));
+  app.append(h('h1',{},s.title));
+  app.append(h('div',{class:'muted'},a?a.artist:''));
+  app.append(h('div',{class:'row',style:'margin-top:14px'},
+    h('button',{class:'btn',type:'button',onclick:function(){editSong(s)}},'Ubah lagu'),
+    h('button',{class:'btn danger',type:'button',onclick:function(){delSong(s)}},'Hapus')));
+  app.append(h('p',{class:'hint'},'Blok kata atau baris di lirik, lalu tekan "Beri catatan" untuk menulis terjemahan. Tekan bagian yang berwarna kuning untuk membaca catatannya.'));
+  var lyr=h('div',{class:'lyrics',id:'lyrics'});
+  app.append(lyr);renderLyrics(s,lyr);
+  lyr.addEventListener('click',function(e){var m=e.target.closest('mark.note');if(m)openSheet(m.getAttribute('data-id'))});
+  lyr.addEventListener('keydown',function(e){
+    if(e.key!=='Enter'&&e.key!==' ')return;
+    var m=e.target.closest&&e.target.closest('mark.note');if(m){e.preventDefault();openSheet(m.getAttribute('data-id'))}
+  });
+  if(s.notes.length){
+    app.append(h('h2',{},'Semua catatan ('+s.notes.length+')'));
+    app.append(h('ul',{class:'nlist'},s.notes.slice().sort(function(a,b){return a.start-b.start}).map(function(n){
+      return h('li',{},h('button',{type:'button',onclick:function(){openSheet(n.id)}},h('span',{class:'q'},n.quote),h('span',{class:'t'},n.text)));
+    })));
+  }
+}
+
+/* ---------- notes (annotation) ---------- */
+function offsetOf(container,node,off){
+  var r=document.createRange();r.selectNodeContents(container);r.setEnd(node,off);return r.toString().length;
+}
+document.addEventListener('selectionchange',function(){
+  var lyr=$('#lyrics'),bar=$('#selbar');
+  if(!lyr||!current){return}
+  var hide=function(){bar.hidden=true;pending=null};
+  var sel=window.getSelection();
+  if(!sel||!sel.rangeCount||sel.isCollapsed)return hide();
+  var r=sel.getRangeAt(0);
+  if(!lyr.contains(r.startContainer)||!lyr.contains(r.endContainer))return hide();
+  var a=offsetOf(lyr,r.startContainer,r.startOffset),b=offsetOf(lyr,r.endContainer,r.endOffset);
+  var t=current.lyrics.slice(a,b);
+  a+=t.length-t.replace(/^\s+/,'').length;
+  b-=t.length-t.replace(/\s+$/,'').length;
+  if(b<=a)return hide();
+  pending={start:a,end:b};
+  $('#selprev').textContent=current.lyrics.slice(a,b).replace(/\s+/g,' ');
+  bar.hidden=false;
+});
+$('#selbar').addEventListener('pointerdown',function(e){e.preventDefault();held=pending});
+$('#selbtn').addEventListener('click',function(){
+  var p=held||pending;held=null;
+  if(!p||!current)return;
+  var song=current;
+  if(song.notes.some(function(n){return p.start<n.end&&p.end>n.start})){
+    toast('Bagian ini sudah punya catatan. Pilih bagian lain.');return;
+  }
+  var quote=song.lyrics.slice(p.start,p.end);
+  openForm({title:'Catatan untuk: '+(quote.length>50?quote.slice(0,50)+'…':quote),
+    fields:[{name:'text',label:'Terjemahan atau catatan',type:'textarea',rows:6,required:true,placeholder:'Tulis artinya, penjelasan kata, atau tata bahasanya'}],
+    onSave:function(v){
+      song.notes.push({id:uid(),start:p.start,end:p.end,quote:quote,text:v.text.trim()});
+      save();window.getSelection().removeAllRanges();$('#selbar').hidden=true;pending=null;
+      renderLyrics(song,$('#lyrics'));viewSong(song);
+    }});
+});
+
+function closeSheet(){
+  $('#sheet').hidden=true;
+  document.querySelectorAll('mark.note.on').forEach(function(m){m.classList.remove('on')});
+}
+function openSheet(id){
+  var song=current;if(!song)return;
+  var n=song.notes.filter(function(x){return x.id===id})[0];if(!n)return;
+  document.querySelectorAll('mark.note.on').forEach(function(m){m.classList.remove('on')});
+  var mk=document.querySelector('mark.note[data-id="'+id+'"]');
+  if(mk){mk.classList.add('on');mk.scrollIntoView({block:'center',behavior:'smooth'})}
+  var sh=$('#sheet');sh.textContent='';
+  sh.append(h('p',{class:'q'},n.quote),h('p',{class:'t'},n.text),
+    h('div',{class:'row'},
+      h('button',{class:'btn',type:'button',onclick:function(){
+        openForm({title:'Ubah catatan',fields:[{name:'text',label:'Terjemahan atau catatan',type:'textarea',rows:6,value:n.text,required:true}],
+          onSave:function(v){n.text=v.text.trim();save();viewSong(song);openSheet(id)}});
+      }},'Ubah'),
+      h('button',{class:'btn danger',type:'button',onclick:function(){
+        if(!confirm('Hapus catatan ini?'))return;
+        song.notes=song.notes.filter(function(x){return x.id!==id});
+        save();closeSheet();viewSong(song);
+      }},'Hapus'),
+      h('button',{class:'btn ghost',type:'button',onclick:closeSheet},'Tutup')));
+  sh.hidden=false;
+}
+
+/* ---------- CRUD ---------- */
+function addAlbum(){
+  openForm({title:'Tambah album',fields:[
+    {name:'title',label:'Judul album',type:'text',required:true},
+    {name:'artist',label:'Artis',type:'text'},
+    {name:'cover',label:'Cover',type:'cover'}],
+    onSave:function(v){
+      var a={id:uid(),title:v.title.trim(),artist:v.artist.trim(),cover:v.cover};
+      db.albums.push(a);save();location.hash='#/album/'+a.id;
+    }});
+}
+function editAlbum(a){
+  openForm({title:'Ubah album',fields:[
+    {name:'title',label:'Judul album',type:'text',required:true,value:a.title},
+    {name:'artist',label:'Artis',type:'text',value:a.artist},
+    {name:'cover',label:'Cover',type:'cover',value:a.cover}],
+    onSave:function(v){a.title=v.title.trim();a.artist=v.artist.trim();a.cover=v.cover;save();viewAlbum(a)}});
+}
+function delAlbum(a){
+  var n=db.songs.filter(function(s){return s.albumId===a.id}).length;
+  if(!confirm('Hapus album "'+a.title+'" beserta '+n+' lagu dan semua catatannya?'))return;
+  db.songs=db.songs.filter(function(s){return s.albumId!==a.id});
+  db.albums=db.albums.filter(function(x){return x.id!==a.id});
+  save();location.hash='#/';
+}
+function addSong(a){
+  openForm({title:'Tambah lagu ke '+a.title,fields:[
+    {name:'title',label:'Judul lagu',type:'text',required:true},
+    {name:'lyrics',label:'Lirik (tempel di sini)',type:'textarea',rows:12,required:true}],
+    onSave:function(v){
+      var s={id:uid(),albumId:a.id,title:v.title.trim(),lyrics:v.lyrics.replace(/\r\n?/g,'\n').replace(/\s+$/,''),notes:[]};
+      db.songs.push(s);save();location.hash='#/lagu/'+s.id;
+    }});
+}
+function editSong(s){
+  openForm({title:'Ubah lagu',fields:[
+    {name:'title',label:'Judul lagu',type:'text',required:true,value:s.title},
+    {name:'lyrics',label:'Lirik',type:'textarea',rows:12,required:true,value:s.lyrics}],
+    onSave:function(v){
+      var lyr=v.lyrics.replace(/\r\n?/g,'\n').replace(/\s+$/,''),before=s.notes.length,kept=[];
+      s.notes.slice().sort(function(a,b){return a.start-b.start}).forEach(function(n){
+        var st=lyr.slice(n.start,n.end)===n.quote?n.start:lyr.indexOf(n.quote);
+        if(st<0)return;
+        var last=kept[kept.length-1];
+        if(last&&st<last.end)return;
+        n.start=st;n.end=st+n.quote.length;kept.push(n);
+      });
+      s.title=v.title.trim();s.lyrics=lyr;s.notes=kept;save();viewSong(s);
+      if(kept.length<before)toast((before-kept.length)+' catatan dihapus karena teks liriknya berubah');
+    }});
+}
+function delSong(s){
+  if(!confirm('Hapus lagu "'+s.title+'" dan semua catatannya?'))return;
+  var aid=s.albumId;db.songs=db.songs.filter(function(x){return x.id!==s.id});
+  save();location.hash='#/album/'+aid;
+}
+
+/* ---------- backup ---------- */
+$('#exp').addEventListener('click',function(){
+  var blob=new Blob([JSON.stringify(db)],{type:'application/json'});
+  var a=h('a',{href:URL.createObjectURL(blob),download:'catatan-lirik-cadangan.json'});
+  document.body.append(a);a.click();a.remove();
+});
+$('#imp').addEventListener('click',function(){$('#impfile').click()});
+$('#impfile').addEventListener('change',function(e){
+  var f=e.target.files[0];if(!f)return;
+  var r=new FileReader();
+  r.onload=function(){
+    try{
+      var d=JSON.parse(r.result);
+      if(!d||!Array.isArray(d.albums)||!Array.isArray(d.songs))throw new Error('format');
+      if(!confirm('Data di browser ini akan diganti dengan isi cadangan. Lanjut?'))return;
+      db=d;save();location.hash='#/';go();toast('Cadangan dipulihkan');
+    }catch(err){toast('File cadangan tidak valid')}
+  };
+  r.readAsText(f);e.target.value='';
+});
+
+/* ---------- router ---------- */
+function go(){
+  closeSheet();current=null;pending=null;held=null;$('#selbar').hidden=true;
+  window.scrollTo(0,0);
+  var p=location.hash.split('/'),page=p[1],id=p[2];
+  if(page==='album'&&albumById(id))return viewAlbum(albumById(id));
+  if(page==='lagu'&&songById(id))return viewSong(songById(id));
+  viewHome();
+}
+window.addEventListener('hashchange',go);
+go();
+})();
+</script>
+</body>
+</html>
