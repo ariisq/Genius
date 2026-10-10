@@ -2,7 +2,7 @@
 // Sinkron album dan lagu: Vercel Function + Upstash Redis, tanpa paket tambahan.
 const DB_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const DB_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-const OK_KEY = /^[as]:[A-Za-z0-9_-]{1,60}$/;
+const OK_KEY = /^[asr]:[A-Za-z0-9_-]{1,60}$/;
 
 async function redis(cmd) {
   const r = await fetch(DB_URL, {
