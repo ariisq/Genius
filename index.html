@@ -237,6 +237,12 @@ function coverEl(a){
   return h('div',{class:'cv ph',style:'background:hsl('+hue+',38%,34%)','aria-hidden':'true'},(a.title[0]||'?').toUpperCase());
 }
 
+  function fixLink(u){u=(u||'').trim();if(!u)return '';return /^https?:\/\//i.test(u)?u:'https://'+u}
+function linkBtn(a){
+  if(!a||!/^https?:\/\//i.test(a.link||''))return null;
+  return h('a',{class:'btn',href:a.link,target:'_blank',rel:'noopener noreferrer',title:'Buka tautan album'},'Buka tautan ↗');
+}
+  
 /* ---------- teks kaya: aman (format ala Word, rumus, tautan, foto) ---------- */
 var OKIMG=/^(data:image\/(png|jpe?g|gif|webp);base64,|https?:\/\/)/i;
 var COLOR=/^(#[0-9a-f]{3,8}|rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*[\d.]+\s*)?\))$/i;
@@ -454,6 +460,7 @@ function viewAlbum(a){
   app.append(h('div',{class:'ahead'},coverEl(a),h('div',{},
     h('h1',{},a.title),h('div',{class:'muted'},a.artist||'Tanpa artis'),
     h('div',{class:'row',style:'margin-top:14px'},
+      linkBtn(a),
       h('button',{class:'btn primary',type:'button',onclick:function(){addSong(a)}},'Tambah lagu'),
       h('button',{class:'btn',type:'button',onclick:function(){editAlbum(a)}},'Ubah album'),
       h('button',{class:'btn danger',type:'button',onclick:function(){delAlbum(a)}},'Hapus')))));
@@ -482,6 +489,7 @@ function viewSong(s){
   app.append(h('div',{class:'shead'},a?coverEl(a):null,h('div',{},
     h('h1',{},s.title),h('div',{class:'muted'},a?a.artist:''),
     h('div',{class:'row',style:'margin-top:14px'},
+      linkBtn(a),
       h('button',{class:'btn',type:'button',onclick:function(){editSong(s)}},'Ubah lagu'),
       h('button',{class:'btn danger',type:'button',onclick:function(){delSong(s)}},'Hapus')))));
   app.append(h('p',{class:'hint'},'Blok kata atau baris di lirik, lalu tekan "Beri catatan" untuk menulis terjemahan (bisa pakai format seperti Word, rumus matematika, tautan, dan foto). Tekan bagian yang berwarna kuning untuk membaca catatannya.'));
@@ -570,9 +578,10 @@ function addAlbum(){
   openForm({title:'Tambah album',fields:[
     {name:'title',label:'Judul album',type:'text',required:true},
     {name:'artist',label:'Artis',type:'text'},
-    {name:'cover',label:'Cover',type:'cover'}],
+    {name:'cover',label:'Cover',type:'cover'},
+    {name:'link',label:'Tautan album (opsional)',type:'text',placeholder:'https://…'}],
     onSave:function(v){
-      var a={id:uid(),title:v.title.trim(),artist:v.artist.trim(),cover:v.cover};
+      var a={id:uid(),title:v.title.trim(),artist:v.artist.trim(),cover:v.cover,link:fixLink(v.link)};
       db.albums.push(a);save();location.hash='#/album/'+a.id;
     }});
 }
@@ -581,7 +590,7 @@ function editAlbum(a){
     {name:'title',label:'Judul album',type:'text',required:true,value:a.title},
     {name:'artist',label:'Artis',type:'text',value:a.artist},
     {name:'cover',label:'Cover',type:'cover',value:a.cover}],
-    onSave:function(v){a.title=v.title.trim();a.artist=v.artist.trim();a.cover=v.cover;save();viewAlbum(a)}});
+    onSave:function(v){a.title=v.title.trim();a.artist=v.artist.trim();a.cover=v.cover;a.link=fixLink(v.link);save();viewAlbum(a)}});
 }
 function delAlbum(a){
   var n=db.songs.filter(function(s){return s.albumId===a.id}).length;
