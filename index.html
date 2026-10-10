@@ -135,6 +135,19 @@ textarea{resize:vertical;line-height:1.5}
 .cl{display:inline-flex;align-items:center;gap:4px;margin:0;font-size:.82rem;font-weight:600;cursor:pointer;padding:0 6px;min-height:34px}
 .cl input[type=color]{width:26px;height:22px;border:0;padding:0;background:none}
 .tb+.tb{border-top:0;padding-top:0}
+.rooms{display:flex;gap:8px;overflow-x:auto;padding:2px 0 14px;-webkit-overflow-scrolling:touch}
+.chip{flex:none;border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 14px;font-weight:600;font-size:.9rem;cursor:pointer;white-space:nowrap}
+.chip:hover{border-color:var(--ink)}
+.chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip.add{border-style:dashed;color:var(--muted)}
+.acard{display:flex;flex-direction:column;gap:8px}
+.ctl{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ctl .btn{padding:4px 12px;min-width:38px}
+.ctl .btn:disabled{opacity:.35;cursor:default}
+.ctl .btn:disabled:hover{background:transparent;color:inherit}
+.ctl .sel{flex:1;min-width:0}
+.songs li.arr{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}
+.songs li.arr a{flex:1;border-bottom:0}
 footer{background:#fff;color:#b5b5b5;padding:22px 0 48px;font-size:.9rem}
 footer .btn{color:#000;border-color:#555}
 footer .btn:hover{background:#fff;color:#000}
@@ -208,7 +221,7 @@ function load(){
   try{var r=localStorage.getItem(KEY);if(r){var d=JSON.parse(r);if(d&&Array.isArray(d.albums)&&Array.isArray(d.songs))return d}}catch(e){}
   return sample();
 }
-var db=load();
+var db=load();db.rooms=db.rooms||[];
 function save(){
   stamp();
   if(!persist())toast('Penyimpanan penuh atau diblokir. Simpan cadangan (.json) dulu.');
@@ -420,6 +433,9 @@ function openForm(o){
       form.append(prev,h('div',{class:'row'},file,rm));
     }else if(f.type==='rich'){
       var rt=makeRte(f.value||'',f.placeholder);inputs[f.name]=rt;form.append(rt.el);
+    }else if(f.type==='select'){
+      var sl=h('select',{id:id,class:'sel',style:'width:100%;height:40px'},f.options.map(function(o){return h('option',{value:o[0]},o[1])}));
+      sl.value=f.value||'';inputs[f.name]=sl;form.append(sl);
     }else{
       var el=f.type==='textarea'
         ?h('textarea',{id:id,rows:f.rows||5,placeholder:f.placeholder||''})
@@ -436,26 +452,111 @@ function openForm(o){
   var first=form.querySelector('[contenteditable]')||form.querySelector('input[type=text],textarea');if(first)first.focus();
 }
 
+/* ---------- room dan urutan ---------- */
+var curRoom='',arrange=false;
+try{curRoom=localStorage.getItem(KEY+'-room')||''}catch(e){}
+function ordv(x){return x.ord==null?1e9:x.ord}
+function sorted(list){return list.slice().sort(function(a,b){return ordv(a)-ordv(b)})}
+function nextOrd(list){var m=-1,any=false;list.forEach(function(x){if(x.ord!=null){any=true;if(x.ord>m)m=x.ord}});return any?m+1:undefined}
+function move(list,item,d){
+  var s=sorted(list),i=s.indexOf(item),j=i+d;
+  if(i<0||j<0||j>=s.length)return;
+  s.forEach(function(x,n){if(x.ord!==n)x.ord=n});
+  var t=s[i].ord;s[i].ord=s[j].ord;s[j].ord=t;
+  save();
+}
+function roomById(id){return db.rooms.filter(function(r){return r.id===id})[0]}
+function rkey(a){return a.roomId&&roomById(a.roomId)?a.roomId:''}
+function setRoom(v){curRoom=v;try{localStorage.setItem(KEY+'-room',v)}catch(e){}viewHome()}
+function albumsIn(k){return sorted(db.albums.filter(function(a){return rkey(a)===k}))}
+function roomField(val){return {name:'roomId',label:'Room',type:'select',value:val,options:[['','Tanpa room']].concat(sorted(db.rooms).map(function(r){return [r.id,r.name]}))}}
+function moveToRoom(a,rid){
+  a.roomId=rid;
+  var no=nextOrd(db.albums.filter(function(x){return x!==a&&rkey(x)===rid}));
+  if(no==null)delete a.ord;else a.ord=no;
+  save();viewHome();
+}
+function addRoom(){
+  openForm({title:'Tambah room',fields:[{name:'name',label:'Nama room',type:'text',required:true,placeholder:'mis. Oktober 2026'}],
+    onSave:function(v){var r={id:uid(),name:v.name.trim()},no=nextOrd(db.rooms);if(no!=null)r.ord=no;db.rooms.push(r);save();setRoom(r.id)}});
+}
+function editRoom(r){
+  openForm({title:'Ubah nama room',fields:[{name:'name',label:'Nama room',type:'text',required:true,value:r.name}],
+    onSave:function(v){r.name=v.name.trim();save();viewHome()}});
+}
+function delRoom(r){
+  var inRoom=db.albums.filter(function(a){return a.roomId===r.id});
+  if(!confirm('Hapus room "'+r.name+'"? '+inRoom.length+' album di dalamnya tidak ikut terhapus, hanya jadi "Tanpa room".'))return;
+  inRoom.forEach(function(a){a.roomId=''});
+  db.rooms=db.rooms.filter(function(x){return x!==r});
+  curRoom='';save();viewHome();
+}
+function gridOf(list){
+  return h('div',{class:'grid'},list.map(function(a){
+    var n=db.songs.filter(function(s){return s.albumId===a.id}).length;
+    var el=h('a',{class:'album',href:'#/album/'+a.id},coverEl(a),h('b',{},a.title),h('span',{class:'muted'},(a.artist||'Tanpa artis')+' · '+n+' lagu'));
+    if(!arrange)return el;
+    var i=list.indexOf(a),sl=null;
+    if(db.rooms.length){
+      sl=h('select',{class:'sel',title:'Pindah ke room',onchange:function(e){moveToRoom(a,e.target.value)}},
+        [h('option',{value:''},'Tanpa room')].concat(sorted(db.rooms).map(function(r){return h('option',{value:r.id},r.name)})));
+      sl.value=rkey(a);
+    }
+    return h('div',{class:'acard'},el,h('div',{class:'ctl'},
+      h('button',{class:'btn',type:'button',title:'Geser ke depan',disabled:i<1,onclick:function(){move(list,a,-1);viewHome()}},'◀'),
+      h('button',{class:'btn',type:'button',title:'Geser ke belakang',disabled:i>list.length-2,onclick:function(){move(list,a,1);viewHome()}},'▶'),sl));
+  }));
+}
+
 /* ---------- views ---------- */
 var current=null,pending=null,held=null;
 
 function viewHome(){
   app.textContent='';
+  if(curRoom&&curRoom!=='none'&&!roomById(curRoom))curRoom='';
   app.append(h('div',{class:'head'},
     h('div',{},h('h1',{},'Album'),h('div',{class:'muted'},db.albums.length+' album, '+db.songs.length+' lagu')),
     h('button',{class:'btn primary',type:'button',onclick:addAlbum},'Tambah album')));
-  if(!db.albums.length){
+  var rooms=sorted(db.rooms),r0=roomById(curRoom);
+  var chip=function(v,label){return h('button',{type:'button',class:'chip'+(curRoom===v?' on':''),onclick:function(){setRoom(v)}},label)};
+  var bar=h('div',{class:'rooms'});
+  if(rooms.length)bar.append(chip('','Semua'));
+  rooms.forEach(function(r){bar.append(chip(r.id,r.name))});
+  if(rooms.length&&db.albums.some(function(a){return !rkey(a)}))bar.append(chip('none','Tanpa room'));
+  bar.append(h('button',{type:'button',class:'chip add',onclick:addRoom},'+ Room'));
+  app.append(bar);
+  var ctl=h('div',{class:'row',style:'margin:0 0 20px'});
+  if(db.albums.length)ctl.append(h('button',{type:'button',class:'btn'+(arrange?' primary':''),onclick:function(){arrange=!arrange;viewHome()}},arrange?'Selesai mengatur':'Atur urutan'));
+  if(r0){
+    var ri=rooms.indexOf(r0);
+    ctl.append(
+      h('button',{type:'button',class:'btn',onclick:function(){editRoom(r0)}},'Ubah nama room'),
+      h('button',{type:'button',class:'btn',title:'Geser room ke kiri',disabled:ri<1,onclick:function(){move(rooms,r0,-1);viewHome()}},'◀ Room'),
+      h('button',{type:'button',class:'btn',title:'Geser room ke kanan',disabled:ri>rooms.length-2,onclick:function(){move(rooms,r0,1);viewHome()}},'Room ▶'),
+      h('button',{type:'button',class:'btn danger',onclick:function(){delRoom(r0)}},'Hapus room'));
+  }
+  if(ctl.childNodes.length)app.append(ctl);
+  if(!db.albums.length&&!rooms.length){
     app.append(h('div',{class:'empty'},'Belum ada album. Tekan "Tambah album" untuk mulai.'));return;
   }
-  app.append(h('div',{class:'grid'},db.albums.map(function(a){
-    var n=db.songs.filter(function(s){return s.albumId===a.id}).length;
-    return h('a',{class:'album',href:'#/album/'+a.id},coverEl(a),h('b',{},a.title),h('span',{class:'muted'},(a.artist||'Tanpa artis')+' · '+n+' lagu'));
-  })));
+  if(!rooms.length){app.append(gridOf(albumsIn('')));return}
+  if(curRoom===''){
+    rooms.forEach(function(r){
+      var l=albumsIn(r.id);
+      app.append(h('h2',{},r.name+' ('+l.length+')'));
+      app.append(l.length?gridOf(l):h('div',{class:'muted'},'Belum ada album di room ini.'));
+    });
+    var rest=albumsIn('');
+    if(rest.length){app.append(h('h2',{},'Tanpa room ('+rest.length+')'));app.append(gridOf(rest))}
+  }else{
+    var l2=albumsIn(curRoom==='none'?'':curRoom);
+    app.append(l2.length?gridOf(l2):h('div',{class:'empty'},'Belum ada album di room ini. Tekan "Tambah album", atau pindahkan album lewat "Atur urutan".'));
+  }
 }
 
 function viewAlbum(a){
   app.textContent='';
-  var songs=db.songs.filter(function(s){return s.albumId===a.id});
+  var songs=sorted(db.songs.filter(function(s){return s.albumId===a.id}));
   app.append(h('a',{class:'back',href:'#/'},'← Semua album'));
   app.append(h('div',{class:'ahead'},coverEl(a),h('div',{},
     h('h1',{},a.title),h('div',{class:'muted'},a.artist||'Tanpa artis'),
@@ -465,8 +566,13 @@ function viewAlbum(a){
       h('button',{class:'btn',type:'button',onclick:function(){editAlbum(a)}},'Ubah album'),
       h('button',{class:'btn danger',type:'button',onclick:function(){delAlbum(a)}},'Hapus')))));
   if(!songs.length){app.append(h('div',{class:'empty'},'Album ini belum punya lagu.'));return}
-  app.append(h('ul',{class:'songs'},songs.map(function(s){
-    return h('li',{},h('a',{href:'#/lagu/'+s.id},h('span',{},s.title),h('span',{class:'muted n'},s.notes.length+' catatan')));
+  if(songs.length>1)app.append(h('div',{class:'row',style:'margin:0 0 12px'},h('button',{type:'button',class:'btn'+(arrange?' primary':''),onclick:function(){arrange=!arrange;viewAlbum(a)}},arrange?'Selesai mengatur':'Atur urutan lagu')));
+  app.append(h('ul',{class:'songs'},songs.map(function(s,i){
+    var row=h('a',{href:'#/lagu/'+s.id},h('span',{},s.title),h('span',{class:'muted n'},s.notes.length+' catatan'));
+    if(!arrange||songs.length<2)return h('li',{},row);
+    return h('li',{class:'arr'},row,h('div',{class:'ctl'},
+      h('button',{class:'btn',type:'button',title:'Naik',disabled:i<1,onclick:function(){move(songs,s,-1);viewAlbum(a)}},'▲'),
+      h('button',{class:'btn',type:'button',title:'Turun',disabled:i>songs.length-2,onclick:function(){move(songs,s,1);viewAlbum(a)}},'▼')));
   })));
 }
 
@@ -575,22 +681,38 @@ function openSheet(id){
 
 /* ---------- CRUD ---------- */
 function addAlbum(){
-  openForm({title:'Tambah album',fields:[
+  var f=[
     {name:'title',label:'Judul album',type:'text',required:true},
     {name:'artist',label:'Artis',type:'text'},
     {name:'cover',label:'Cover',type:'cover'},
-    {name:'link',label:'Tautan album (opsional)',type:'text',placeholder:'https://…'}],
+    {name:'link',label:'Tautan album (opsional)',type:'text',placeholder:'https://…'}];
+  if(db.rooms.length)f.push(roomField(curRoom==='none'?'':curRoom));
+  openForm({title:'Tambah album',fields:f,
     onSave:function(v){
       var a={id:uid(),title:v.title.trim(),artist:v.artist.trim(),cover:v.cover,link:fixLink(v.link)};
+      if(v.roomId!==undefined)a.roomId=v.roomId;
+      var no=nextOrd(db.albums.filter(function(x){return rkey(x)===rkey(a)}));if(no!=null)a.ord=no;
       db.albums.push(a);save();location.hash='#/album/'+a.id;
     }});
 }
 function editAlbum(a){
-  openForm({title:'Ubah album',fields:[
+  var f=[
     {name:'title',label:'Judul album',type:'text',required:true,value:a.title},
     {name:'artist',label:'Artis',type:'text',value:a.artist},
-    {name:'cover',label:'Cover',type:'cover',value:a.cover}],
-    onSave:function(v){a.title=v.title.trim();a.artist=v.artist.trim();a.cover=v.cover;a.link=fixLink(v.link);save();viewAlbum(a)}});
+    {name:'cover',label:'Cover',type:'cover',value:a.cover},
+    {name:'link',label:'Tautan album (opsional)',type:'text',placeholder:'https://…',value:a.link||''}];
+  if(db.rooms.length)f.push(roomField(rkey(a)));
+  openForm({title:'Ubah album',fields:f,
+    onSave:function(v){
+      var old=rkey(a);
+      a.title=v.title.trim();a.artist=v.artist.trim();a.cover=v.cover;a.link=fixLink(v.link);
+      if(v.roomId!==undefined&&v.roomId!==old){
+        a.roomId=v.roomId;
+        var no=nextOrd(db.albums.filter(function(x){return x!==a&&rkey(x)===v.roomId}));
+        if(no==null)delete a.ord;else a.ord=no;
+      }
+      save();viewAlbum(a);
+    }});
 }
 function delAlbum(a){
   var n=db.songs.filter(function(s){return s.albumId===a.id}).length;
@@ -605,6 +727,7 @@ function addSong(a){
     {name:'lyrics',label:'Lirik (tempel di sini)',type:'textarea',rows:12,required:true}],
     onSave:function(v){
       var s={id:uid(),albumId:a.id,title:v.title.trim(),lyrics:v.lyrics.replace(/\r\n?/g,'\n').replace(/\s+$/,''),notes:[]};
+      var no=nextOrd(db.songs.filter(function(x){return x.albumId===a.id}));if(no!=null)s.ord=no;
       db.songs.push(s);save();location.hash='#/lagu/'+s.id;
     }});
 }
@@ -646,7 +769,7 @@ $('#impfile').addEventListener('change',function(e){
       var d=JSON.parse(r.result);
       if(!d||!Array.isArray(d.albums)||!Array.isArray(d.songs))throw new Error('format');
       if(!confirm('Data di browser ini akan diganti dengan isi cadangan. Lanjut?'))return;
-      db=d;save();location.hash='#/';go();toast('Cadangan dipulihkan');
+      db=d;db.rooms=db.rooms||[];save();location.hash='#/';go();toast('Cadangan dipulihkan');
     }catch(err){toast('File cadangan tidak valid')}
   };
   r.readAsText(f);e.target.value='';
@@ -656,7 +779,7 @@ $('#impfile').addEventListener('change',function(e){
 var KY='',snap={},busy=0,again=0,later=0,tq=0,lastV=null,warned=0;
 try{KY=localStorage.getItem(KEY+'-k')||''}catch(e){}
 function sig(o){return JSON.stringify(o,function(k,v){return k==='u'?undefined:v})}
-function ents(){var m={};db.albums.forEach(function(a){m['a:'+a.id]=a});db.songs.forEach(function(s){m['s:'+s.id]=s});return m}
+function ents(){var m={};db.albums.forEach(function(a){m['a:'+a.id]=a});db.songs.forEach(function(s){m['s:'+s.id]=s});db.rooms.forEach(function(r){m['r:'+r.id]=r});return m}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch(e){return false}}
 function stamp(){
   var now=Date.now(),c=ents(),k;db.del=db.del||{};
@@ -687,7 +810,7 @@ async function api(m,qs,body){
   return r.json();
 }
 function put(k,o){
-  var arr=k.charAt(0)==='a'?db.albums:db.songs,id=k.slice(2),i=-1,old;
+  var arr=k.charAt(0)==='a'?db.albums:k.charAt(0)==='r'?db.rooms:db.songs,id=k.slice(2),i=-1,old;
   arr.forEach(function(x,n){if(x.id===id)i=n});
   if(o.del){if(i>=0)arr.splice(i,1);db.del[k]=o.u;delete snap[k];return}
   delete db.del[k];
